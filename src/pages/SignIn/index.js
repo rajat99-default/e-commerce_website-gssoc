@@ -1,20 +1,17 @@
-import React, { useState, useContext } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './style.css';
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined';
-import { Button,Snackbar } from '@mui/material';
-import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, sendPasswordResetEmail } from "firebase/auth";
+import { Button, Snackbar } from '@mui/material';
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { app } from '../../firebase';
 import Backdrop from '@mui/material/Backdrop';
 import CircularProgress from '@mui/material/CircularProgress';
-import { MyContext } from '../../App';
-import GoogleImg from '../../assets/images/google.png';
-import useLoggedInUserEmail from '../../Hooks/useLoggedInUserEmail';
+
 const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
 
 const SignIn = () => {
     const [showPassword, setShowPassword] = useState(false);
@@ -24,82 +21,45 @@ const SignIn = () => {
         password: '',
     });
     const [error, setError] = useState('');
-    const context = useContext(MyContext);
     const history = useNavigate();
     const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [loggedInUserEmail,setLoggedInUseEmail]=useLoggedInUserEmail(); //get_email hook
-    function replaceSpecialCharacters(inputString) {
-        // Use a regular expression to replace special characters with underscore _
-        const replacedString = inputString.replace(/[#$\[\].]/g, '_');
-    
-        return replacedString;
-    }
-    
 
+ 
     const onChangeField = (e) => {
-        const name = e.target.name;
-        const value = e.target.value;
-
-        setFormFields(() => ({
-            ...formFields,
-            [name]: value,
-        }));
+        const { name, value } = e.target;
+        setFormFields({ ...formFields, [name]: value });
     }
 
+  
+    const isFormValid = () => {
+        return formFields.email.trim() !== '' && formFields.password.trim() !== '';
+    }
+
+   
     const signIn = () => {
+        if (!isFormValid()) {
+            setError('Please fill out all fields.'); 
+            return;
+        }
+
         setShowLoader(true);
         signInWithEmailAndPassword(auth, formFields.email, formFields.password)
             .then((userCredential) => {
-                const user = userCredential.user;
                 setShowLoader(false);
-                setFormFields({
-                    email: '',
-                    password: '',
-                });
+                setFormFields({ email: '', password: '' });
                 localStorage.setItem('isLogin', true);
-                const udata=replaceSpecialCharacters(user.email)
-                localStorage.setItem('user',udata)
-                context.signIn();
-                setLoggedInUseEmail(user.email)
-                //console.log(loggedInUserEmail);
                 history('/');
             })
             .catch((error) => {
                 setShowLoader(false);
-                setError(error.message);
+                setError('Invalid email or password.');
             });
     }
 
-    const signInWithGoogle = () => {
-        //console.log('hi sign in');
-        setShowLoader(true);
-        signInWithPopup(auth, googleProvider)
-            .then((result) => {
-                setShowLoader(false);
-                localStorage.setItem('isLogin', true);
-                const udata=replaceSpecialCharacters(result.user.email)
-                localStorage.setItem('user',udata)
-                context.signIn();
-                setLoggedInUseEmail(udata)
-                //console.log(loggedInUserEmail);
-                history('/');
-            })
-            .catch((error) => {
-                setShowLoader(false);
-                setError(error.message);
-            });
-    }
+   
+    
 
-    const forgotPassword = () => {
-        const email = formFields.email;
-        sendPasswordResetEmail(auth, email)
-            .then(() => {
-                setSnackbarOpen(true);
-            })
-            .catch((error) => {
-                setError(error.message);
-            });
-    }
+  
     const handleCloseSnackbar = () => {
         setSnackbarOpen(false);
     }
@@ -129,24 +89,25 @@ const SignIn = () => {
                         <h3>Sign In</h3>
                         <form className='mt-4'>
                             <div className='form-group mb-4 w-100'>
-                                <TextField id="email" type="email" name='email' label="Email" className='w-100'
-                                    onChange={onChangeField} value={formFields.email} autoComplete='email' />
-                            </div>
+                        <TextField id="email" type="email" name='email' label="Email" className='w-100'
+                            onChange={onChangeField} value={formFields.email} autoComplete='email' />
+                    </div>
                             <div className='form-group mb-4 w-100'>
-                                <div className='position-relative'>
-                                    <TextField id="password" type={showPassword === false ? 'password' : 'text'} name='password' label="Password" className='w-100'
-                                        onChange={onChangeField} value={formFields.password} autoComplete='current-password' />
-                                    <Button className='icon' onClick={() => setShowPassword(!showPassword)}>
-                                        {showPassword === false ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
-                                    </Button>
-                                </div>
-                            </div>
+                        <div className='position-relative'>
+                            <TextField id="password" type={showPassword ? 'text' : 'password'} name='password' label="Password" className='w-100'
+                                onChange={onChangeField} value={formFields.password} autoComplete='current-password' />
+                            <Button className='icon' onClick={() => setShowPassword(!showPassword)}>
+                                {showPassword ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                            </Button>
+                        </div>
+                    </div>
 
-                            {error && <div className="alert alert-danger" role="alert">Invalid Email or Password</div>}
+                           {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
-                            <div className='form-group mt-5 mb-4 w-100'>
-                                <Button className='btn btn-g btn-lg w-100' onClick={signIn}>Sign In</Button>
-                            </div>
+                    <div className='form-group mt-5 mb-4 w-100'>
+                        {/* The "Sign In" button is disabled if the form is not valid */}
+                        <Button className='btn btn-g btn-lg w-100' onClick={signIn} disabled={!isFormValid()}>Sign In</Button>
+                    </div>
 
                             <div className='form-group mt-5 mb-4 w-100 signInOr'>
                                 <p className='text-center'>OR</p>
